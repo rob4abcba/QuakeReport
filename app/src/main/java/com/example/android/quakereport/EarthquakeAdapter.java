@@ -17,10 +17,16 @@ public class EarthquakeAdapter extends ArrayAdapter<Earthquake> {
     private static final String LOG_TAG = EarthquakeAdapter.class.getSimpleName();
 
     /**
+     * The part of the location string from the USGS service that we use to determine
+     * whether or not there is a location offset present ("5km N of Cairo, Egypt").
+     */
+    private static final String LOCATION_SEPARATOR = " of ";
+
+    /**
      * This is our own custom constructor (it doesn't mirror a superclass constructor).
      * The context is used to inflate the layout file, and the list is the data we want
      * to populate into the lists.
-     *
+     * Constructs a new {@link EarthquakeAdapter}.
      * @param context        The current context. Used to inflate the layout file.
      * @param earthquake A List of Earthquake objects to display in a list
      */
@@ -31,14 +37,6 @@ public class EarthquakeAdapter extends ArrayAdapter<Earthquake> {
         // going to use this second argument, so it can be any value. Here, we used 0.
         super(context, 0, earthquake);
     }
-
-
-
-
-
-
-
-
 
     /**
      * Provides a view for an AdapterView (ListView, GridView, etc.)
@@ -58,7 +56,7 @@ public class EarthquakeAdapter extends ArrayAdapter<Earthquake> {
                     R.layout.list_item, parent, false);
         }
 
-        // Get the {@link AndroidFlavor} object located at this position in the list
+        // Get the {@link Earthquake} object located at this position in the list
         Earthquake currentEarthquake = getItem(position);
 
         // Find the TextView with view ID magnitude
@@ -67,11 +65,52 @@ public class EarthquakeAdapter extends ArrayAdapter<Earthquake> {
         // set this text on the magnitude TextView
         magnitudeTextView.setText(currentEarthquake.getMagnitude());
 
-        // Find the TextView in the list_item.xml layout with the ID location
-        TextView locationTextView = (TextView) listItemView.findViewById(R.id.location);
-        // Get the location from the current Earthquake object and
-        // set this text on the location TextView
-        locationTextView.setText(currentEarthquake.getLocation());
+
+
+        // Get the original location string from the (current) Earthquake object,
+        // which can be in the format of "5km N of Cairo, Egypt" or "Pacific-Antarctic Ridge".
+        String originalLocation = currentEarthquake.getLocation();
+
+        // If the original location string (i.e. "5km N of Cairo, Egypt") contains
+        // a primary location (Cairo, Egypt) and a location offset (5km N of that city)
+        // then store the primary location separately from the location offset in 2 Strings,
+        // so they can be displayed in 2 TextViews.
+        String primaryLocation;
+        String locationOffset;
+
+        // Check whether the originalLocation string contains the " of " text
+        if (originalLocation.contains(LOCATION_SEPARATOR)) {
+            // Split the string into different parts (as an array of Strings)
+            // based on the " of " text. We expect an array of 2 Strings, where
+            // the first String will be "5km N" and the second String will be "Cairo, Egypt".
+            String[] parts = originalLocation.split(LOCATION_SEPARATOR);
+            // Location offset should be "5km N " + " of " --> "5km N of"
+            locationOffset = parts[0] + LOCATION_SEPARATOR;
+            // Primary location should be "Cairo, Egypt"
+            primaryLocation = parts[1];
+        } else {
+            // Otherwise, there is no " of " text in the originalLocation string.
+            // Hence, set the default location offset to say "Near the".
+            locationOffset = getContext().getString(R.string.near_the);
+            // The primary location will be the full location string "Pacific-Antarctic Ridge".
+            primaryLocation = originalLocation;
+        }
+
+        // Find the TextView (in res layout list_item.xml) with view ID location
+        TextView primaryLocationView = (TextView) listItemView.findViewById(R.id.primary_location);
+        // Display the location of the current earthquake in that TextView
+        primaryLocationView.setText(primaryLocation);
+
+        // Find the TextView (in res layout list_item.xml) with view ID location offset
+        TextView locationOffsetView = (TextView) listItemView.findViewById(R.id.location_offset);
+        // Display the location offset of the current earthquake in that TextView
+        locationOffsetView.setText(locationOffset);
+
+
+
+
+
+
 
         // Create a new Date object from the time in milliseconds of the earthquake
         Date dateObject = new Date(currentEarthquake.getTimeInMilliseconds());
